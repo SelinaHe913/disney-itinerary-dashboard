@@ -1,7 +1,7 @@
 # QueueSense — Walt Disney World Orlando Trip Studio
 
 - **Team:** QueueSense (change with the `TEAM_NAME` environment variable)
-- **Public repository:** [SelinaHe913/group2-disney-itinerary-dashboard](https://github.com/SelinaHe913/group2-disney-itinerary-dashboard)
+- **Public repository:** [SelinaHe913/disney-itinerary-dashboard](https://github.com/SelinaHe913/disney-itinerary-dashboard)
 - **Streamlit app:** add the public Community Cloud URL after deployment
 
 QueueSense is a historical-data planning prototype for a Disney travel company's **itinerary product manager**. On Monday, the manager enters an upcoming group's dates, trip length, ticket access, hotel type, pace, and must-do attractions. The app proposes the park assignment, explains the historical pressure behind it, and produces a visitor-ready brief. The visitor supplies preferences; the system does not make them choose every park-day first.
@@ -150,7 +150,7 @@ This remains a historical-data prototype. It cannot provide real-time park contr
 ### Project structure
 
 ```text
-group2-disney-itinerary-dashboard/
+disney-itinerary-dashboard/
 ├── .streamlit/
 │   └── config.toml
 ├── app.py
@@ -179,8 +179,8 @@ The virtual environment, downloaded ZIP, unused raw companion files, caches, and
 ### Run locally
 
 ```powershell
-git clone https://github.com/SelinaHe913/group2-disney-itinerary-dashboard.git
-cd group2-disney-itinerary-dashboard
+git clone https://github.com/SelinaHe913/disney-itinerary-dashboard.git
+cd disney-itinerary-dashboard
 uv sync
 uv run streamlit run app.py
 ```
@@ -201,7 +201,7 @@ uv run jupyter nbconvert --execute --to notebook --inplace notebooks/eda.ipynb
 ### Streamlit Community Cloud
 
 1. Push this public repository to GitHub.
-2. Create a new Streamlit Community Cloud app from `SelinaHe913/group2-disney-itinerary-dashboard`.
+2. Create a new Streamlit Community Cloud app from `SelinaHe913/disney-itinerary-dashboard`.
 3. Select branch `main` and main file `app.py`.
 4. In **Advanced settings**, select Python **3.14** as required by the course.
 5. Deploy, test all four steps and one changed preference, then add the real App URL near the top of this README.
