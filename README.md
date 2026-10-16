@@ -2,7 +2,9 @@
 
 - **Team:** QueueSense (change with the `TEAM_NAME` environment variable)
 - **Public repository:** [SelinaHe913/disney-itinerary-dashboard](https://github.com/SelinaHe913/disney-itinerary-dashboard)
-- **Streamlit app:** add the public Community Cloud URL after deployment
+- **Streamlit app:** [queuesense-disney-itinerary.streamlit.app](https://queuesense-disney-itinerary.streamlit.app/)
+
+## Executive Summary
 
 QueueSense is a historical-data planning prototype for a Disney travel company's **itinerary product manager**. On Monday, the manager enters an upcoming group's dates, trip length, ticket access, hotel type, pace, and must-do attractions. The app proposes the park assignment, explains the historical pressure behind it, and produces a visitor-ready brief. The visitor supplies preferences; the system does not make them choose every park-day first.
 
@@ -195,8 +197,12 @@ uv run streamlit run app.py
 Execute the EDA notebook:
 
 ```powershell
-uv run jupyter nbconvert --execute --to notebook --inplace notebooks/eda.ipynb
+uv run python -m ipykernel install --prefix .venv --name queuesense --display-name "QueueSense (Python 3.14)"
+$env:JUPYTER_PATH = (Resolve-Path ".venv\share\jupyter").Path
+uv run jupyter nbconvert --execute --to notebook --inplace --ExecutePreprocessor.kernel_name=queuesense notebooks/eda.ipynb
 ```
+
+In VS Code, the equivalent is to select `.venv\Scripts\python.exe` as the notebook kernel and choose **Run All**.
 
 ### Streamlit Community Cloud
 
@@ -204,7 +210,7 @@ uv run jupyter nbconvert --execute --to notebook --inplace notebooks/eda.ipynb
 2. Create a new Streamlit Community Cloud app from `SelinaHe913/disney-itinerary-dashboard`.
 3. Select branch `main` and main file `app.py`.
 4. In **Advanced settings**, select Python **3.14** as required by the course.
-5. Deploy, test all four steps and one changed preference, then add the real App URL near the top of this README.
+5. The deployed app is available at [queuesense-disney-itinerary.streamlit.app](https://queuesense-disney-itinerary.streamlit.app/); test all four steps and at least one changed preference after each deployment.
 
 Canvas submission should contain exactly two real links: the public GitHub repository URL and the public Streamlit app URL.
 
@@ -230,4 +236,4 @@ The photographs are pre-cropped for a 16:9 dashboard and still use `background-s
 - [x] Empty, infeasible, duplicate-hopper, missing-file, and API-error states handled
 - [x] Units, sample limitations, update cadence, and action rules documented
 - [x] One dependency system: `pyproject.toml` + `uv.lock`
-- [ ] Public Streamlit URL added after deployment
+- [x] Public Streamlit URL added after deployment
