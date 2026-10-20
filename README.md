@@ -22,11 +22,13 @@ Without the app, the manager would repeatedly join dates to parks, compare month
 
 ### Kaggle historical snapshot
 
+Approximate file sizes below use decimal MB/KB and are intentionally rounded so line-ending conversions do not make the documentation stale.
+
 - **Dataset:** [Walt Disney World Wait Times and Crowd Calendar](https://www.kaggle.com/datasets/chadwambles/walt-disney-world-wait-times)
 - **Uploader:** Chad Wambles
 - **Place:** Walt Disney World Resort area, Orlando, Florida, United States
 - **License shown on Kaggle:** CC BY 4.0
-- **Main file:** `data/calendar_enriched.csv`, 1,223,707 bytes (about 1.17 MiB)
+- **Main file:** `data/calendar_enriched.csv`, about 1.2 MB
 - **Coverage:** January 1, 2015 through September 30, 2026
 - **Shape:** 16,682 rows × 17 columns
 - **Unit of observation:** one park × calendar date
@@ -41,8 +43,8 @@ Two compact companion files add only decision-useful attraction context:
 
 | File | Source rows | App use |
 |---|---:|---|
-| `data/ride_stats.csv` | 2,022 | 151,458 bytes. Uses 83 active, all-time `ride_avg_wait` rows to link attractions to parks and rank preparation priorities. The minutes are source summaries, not future predictions. |
-| `data/ll_classification.csv` | 51 | 2,672 bytes. Snapshot labels for Magic Kingdom only: 18 `multi_pass`, 2 `single_pass`, 14 `none`, and 17 `exclude`. Of the 83 active ride rows, 40 match a label; the other 43 are deliberately shown as “Verify access.” |
+| `data/ride_stats.csv` | 2,022 | About 151 KB. Uses 83 active, all-time `ride_avg_wait` rows to link attractions to parks and rank preparation priorities. The minutes are source summaries, not future predictions. |
+| `data/ll_classification.csv` | 51 | About 2.7 KB. Snapshot labels for Magic Kingdom only: 18 `multi_pass`, 2 `single_pass`, 14 `none`, and 17 `exclude`. Of the 83 active ride rows, 40 match a label; the other 43 are deliberately shown as “Verify access.” |
 
 Other Kaggle companion tables were inspected but are not shipped to the app:
 
@@ -159,6 +161,8 @@ These numbers are historical comparison outputs, not promised wait-time savings 
 - **Human review:** itinerary product manager reviews every Monday for upcoming groups; park-day live conditions are checked again before operational changes.
 - **Action trigger:** manually review a route when a visit is at or above `1.10`, fewer selected must-dos have their park scheduled than were selected, or a user override is more than 3% above the system draft.
 - **Cost of stale data:** if the planning base is a week out of date, the manager may rely on outdated queue patterns and create a mismatch between itinerary and experience. No unsupported financial loss is claimed.
+
+**Production design rationale:** the manager plans upcoming group itineraries each Monday, so the proposed nightly batch is frequent enough for routine review; continuously refreshing the planning page would not change most advance-planning decisions. Same-day closures or severe operating disruptions are better handled through alerts or official notifications. This is a production design rationale, not an implemented classroom feature: the current app still uses frozen CSVs, a fixed historical baseline, and live data fetched only on interaction or reload and cached for five minutes. It does not implement automated collection, automated alerts, or timed page refreshes.
 
 This remains a historical-data prototype. It cannot provide real-time park control, guarantee a “best day next week,” or predict exact future waits.
 

@@ -719,7 +719,7 @@ def render() -> None:
 
             work_heading(
                 "Review the system-designed route",
-                "The proposal already covers the visitor's constraints. Editing the park assignment is optional.",
+                "For the itinerary product manager: review historical pressure, check must-do park coverage, and approve or adjust the proposed route.",
                 "STEP 2 · DECISION REVIEW",
             )
             proposed_df = route_frame(reference, proposal)
