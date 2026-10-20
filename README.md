@@ -1,170 +1,173 @@
 # QueueSense — Walt Disney World Orlando Trip Studio
 
-- **Team:** QueueSense (change with the `TEAM_NAME` environment variable)
-- **Public repository:** [SelinaHe913/disney-itinerary-dashboard](https://github.com/SelinaHe913/disney-itinerary-dashboard)
-- **Streamlit app:** [queuesense-disney-itinerary.streamlit.app](https://queuesense-disney-itinerary.streamlit.app/)
+QueueSense is a historical-data planning prototype for a Disney travel company's **itinerary product manager**. Visitors provide trip preferences; the system proposes a route; the manager reviews or adjusts it; and the approved itinerary is delivered on the Travel plan page. Hotel and early-entry information affects only the final operational guidance. It does not change the historical pressure score or route recommendation.
 
-## Executive Summary
+> If the itinerary product manager sees a planned park visit with a historical pressure index at or above 1.10×, they will review the park assignment and either adjust the route or prepare a lower-pressure backup, while preserving the group's constraints.
 
-QueueSense is a historical-data planning prototype for a Disney travel company's **itinerary product manager**. On Monday, the manager enters an upcoming group's dates, trip length, ticket access, hotel type, pace, and must-do attractions. The app proposes the park assignment, explains the historical pressure behind it, and produces a visitor-ready brief. The visitor supplies preferences; the system does not make them choose every park-day first.
+Historical pressure is planning evidence, not actual waiting minutes or a prediction of future queues.
 
-> If the itinerary manager sees that a park has consistently longer waits than comparable days, they will review which park to recommend and how to arrange the guided itinerary for upcoming groups.
+## Step 1 — Dataset and Decision-Maker
 
-Historical fit is planning evidence, not a precise prediction of a future day's queues. Weather, temporary events, closures, operating hours, reservations, and future rule changes are not available in the frozen Kaggle snapshot.
-
-## Step 1 — Define the decision and verify the sources
-
-### Decision, user, and recurring need
-
-The single decision-maker is the itinerary product manager. Every Monday, they review upcoming groups and may change the recommended park mix, order of park-days, or which high-burden attractions require advance preparation. On a park day, the live header is a separate operational check.
-
-Without the app, the manager would repeatedly join dates to parks, compare month-and-weekday records, locate the parks of must-do attractions, and check current queues separately. A fixed report cannot answer a different team's dates, trip length, accepted parks, ticket access, pace, and must-do mix without being rebuilt; the interactive controls recalculate the proposal and review signals for each group. Emergencies such as a sudden closure, severe weather, major ride downtime, or a ticket-rule change are better handled by an operational alert or official notification than by expecting a planning dashboard to be watched continuously. The app does not claim a specific number of hours saved or dollars earned.
-
-### Kaggle historical snapshot
-
-Approximate file sizes below use decimal MB/KB and are intentionally rounded so line-ending conversions do not make the documentation stale.
+### Kaggle historical dataset
 
 - **Dataset:** [Walt Disney World Wait Times and Crowd Calendar](https://www.kaggle.com/datasets/chadwambles/walt-disney-world-wait-times)
 - **Uploader:** Chad Wambles
 - **Place:** Walt Disney World Resort area, Orlando, Florida, United States
 - **License shown on Kaggle:** CC BY 4.0
-- **Main file:** `data/calendar_enriched.csv`, about 1.2 MB
-- **Coverage:** January 1, 2015 through September 30, 2026
+- **Period:** January 1, 2015 through September 30, 2026
+- **Main file:** [`data/calendar_enriched.csv`](data/calendar_enriched.csv), about 1.2 MB
 - **Shape:** 16,682 rows × 17 columns
-- **Unit of observation:** one park × calendar date
+- **Row definition:** one park × calendar date
 - **Parks:** Magic Kingdom, Epcot, Hollywood Studios, and Animal Kingdom
-- **Data character:** the uploader presents these as compiled historical/observational statistics, not synthetic data; QueueSense has not independently verified the full scrape lineage or every transformation
+- **Data character:** compiled historical/observational data, not synthetic data
 
-The Kaggle description attributes the compiled snapshot to scraped Queue-Times historical statistics and calendar pages. It is **not presented here as an official Disney release or as TouringPlans data**. The repository does not independently reproduce the uploader's scraping or every transformation. Where the source definition is incomplete, this README states the limitation instead of guessing.
+Approximate sizes use rounded decimal MB/KB so line-ending conversions do not make the documentation stale. The Kaggle description attributes the compiled snapshot to scraped Queue-Times historical statistics and calendar pages. It is not presented here as an official Disney release or as TouringPlans data, and QueueSense has not independently reproduced the uploader's full collection and transformation process.
 
-`crowd_rel_to_year` is a processed park-day crowd index relative to that park-year's mean. It is not turnstile attendance and it is not an attraction's posted or actual wait. `1.00` means the source park-year mean. The source label `ride_avg_wait` does not establish whether its underlying observations were posted waits, actual waits, or another processed series, so the app calls it only a **source average** and never a future prediction. `operating_minutes` is contextual and missing for some dates; it is not used by the optimizer.
+`crowd_rel_to_year` is a processed park-day crowd index relative to that park's mean in the corresponding source year. `1.00` means that park-year mean; it is not attendance or an attraction's posted or actual wait. The source label `ride_avg_wait` is described only as a **source average**, never as a future prediction. `operating_minutes` is incomplete and is not used by the route recommendation.
 
-Two compact companion files add only decision-useful attraction context:
+### Primary decision-maker and business context
 
-| File | Source rows | App use |
-|---|---:|---|
-| `data/ride_stats.csv` | 2,022 | About 151 KB. Uses 83 active, all-time `ride_avg_wait` rows to link attractions to parks and rank preparation priorities. The minutes are source summaries, not future predictions. |
-| `data/ll_classification.csv` | 51 | About 2.7 KB. Snapshot labels for Magic Kingdom only: 18 `multi_pass`, 2 `single_pass`, 14 `none`, and 17 `exclude`. Of the 83 active ride rows, 40 match a label; the other 43 are deliberately shown as “Verify access.” |
+The single primary user is the **itinerary product manager**. Every Monday, the manager prepares future group itineraries, reviews the proposed park assignment, checks the historical pressure and must-do park coverage, and decides whether to approve the route, adjust it, or prepare a backup. Visitors supply dates and preferences; they are not the dashboard's primary decision-maker.
 
-Other Kaggle companion tables were inspected but are not shipped to the app:
+### Companion data
 
-- `park_stats.csv` repeats calendar aggregations already reproducible from `calendar_enriched.csv`.
-- `coverage_by_year.csv` is a diagnostic summary reproduced in EDA.
-- `chained_index.csv` and `ll_split_index.csv` are intermediate/model summaries, not visitor inputs or direct action measures.
+| File | Rows | Approximate size | App use |
+|---|---:|---:|---|
+| [`data/ride_stats.csv`](data/ride_stats.csv) | 2,022 | 151 KB | Uses 83 active, all-time `ride_avg_wait` rows to associate attractions with parks and rank preparation priorities. |
+| [`data/ll_classification.csv`](data/ll_classification.csv) | 51 | 2.7 KB | Magic Kingdom snapshot labels: 18 `multi_pass`, 2 `single_pass`, 14 `none`, and 17 `exclude`. Forty of the 83 active ride rows match; the other 43 display “Verify access.” |
 
-This follows the assignment's “small and decision-focused” requirement: maximize useful evidence, not file count.
+Other Kaggle companion tables were inspected but are not shipped: `park_stats.csv` repeats calendar aggregations; `coverage_by_year.csv` is reproduced in EDA; and `chained_index.csv` and `ll_split_index.csv` are intermediate summaries rather than direct decision inputs.
 
 ### Public live source
 
-The header calls the free [Queue-Times API](https://queue-times.com/en-US/pages/api) for the four Orlando park IDs. The provider states that queue data update every five minutes. QueueSense requests the API only when Streamlit executes after an interaction or page reload, and caches each result for 300 seconds; an idle page does **not** refresh itself every five minutes. The header displays the source date and time in Eastern Time, the number of returned parks, and the denominator used for the open-attraction median. A snapshot older than 15 minutes—three stated source-update intervals—is marked stale. Partial park responses are marked partial, and a total failure leaves historical planning available.
+The header calls the free [Queue-Times API](https://queue-times.com/en-US/pages/api) for the four Orlando park IDs. A request occurs only when Streamlit executes after an interaction or page reload, and each result is cached for 300 seconds. An idle page does **not** refresh itself every five minutes.
 
-Missing wait values remain missing; a real reported zero is retained. If the returned scope contains no open attractions, the interface says so instead of showing a normal-looking `0 min` median. Live data answer “what is happening now?” They are never blended into a precise forecast for the selected future dates.
+The header shows the source date and time in Eastern Time, returned park coverage, and the denominator used for the open-attraction median. A timestamp more than 15 minutes old is marked stale; fewer than four responding parks is marked partial; and total API failure leaves historical planning available. Missing wait values remain missing, valid zero values remain zero, and a response with no open attractions is not presented as a normal `0 min` median. Live status is kept separate from future historical planning.
 
+## Step 2 — Why a Dashboard
 
-## Step 2 — EDA and defensible measures
+### 1. Who uses it, and how often?
 
-The executable analysis is in [`notebooks/eda.ipynb`](notebooks/eda.ipynb). It uses Pandas and Matplotlib to inspect shape, dtypes, missingness, duplicates, date coverage, park balance, distributions, weekday differences, comparable-cell sample sizes, attraction coverage, and pass-label coverage.
+The itinerary product manager uses QueueSense during the weekly Monday review of future group itineraries. Live conditions may be checked again before an operational change, but the dashboard is not intended for continuous monitoring.
 
-### Verified findings
+### 2. What decision does it support?
+
+It supports one recurring decision: which accepted parks should be assigned to the group's dates, in what order, and whether any historically higher-pressure visit needs an adjustment or backup while preserving ticket and must-do constraints.
+
+### 3. What happens without it, and what does that cost?
+
+Without the dashboard, the manager must manually match dates to parks, find the parks associated with selected must-dos, compare several route options, and check constraints in separate places. This creates repeated work and increases the risk of missing a constraint or comparing alternatives with inconsistent definitions. QueueSense does not claim a specific number of hours saved or a financial return.
+
+### 4. Why a dashboard rather than an email, report, or alert?
+
+An email or fixed report cannot conveniently recalculate a new combination of dates, trip length, accepted parks, ticket access, pace, and must-dos. The interactive dashboard supports like-for-like route comparison and optional manager adjustment. Alerts and official notifications are better for sudden closures, severe weather, major ride downtime, or rule changes; they complement rather than replace routine route comparison.
+
+## Step 3 — Metrics, Charts, Filters, and Layout
+
+### EDA findings
+
+The executable analysis is in [`notebooks/eda.ipynb`](notebooks/eda.ipynb). It checks shape, types, missingness, duplicates, date coverage, park balance, distributions, weekday differences, comparison-cell sizes, attraction coverage, and pass-label coverage.
 
 - No duplicate `park_name × date` rows were found.
 - `operating_minutes` is the only column with missing values: 630 rows. It is excluded from recommendations.
 - Park coverage is balanced: Magic Kingdom 4,173 rows, Animal Kingdom 4,173, Hollywood Studios 4,169, and Epcot 4,167.
-- The full range contains 118–124 missing calendar dates per park, largely reflecting disrupted operating periods. In the included full-year baseline, only one date is absent for three parks and three dates are absent for Epcot. No dates are imputed; comparison cells use the available rows.
-- 2020–2021 are excluded because the operating disruption is not a useful normal-planning baseline. Partial 2026 is also excluded so an unfinished year cannot distort comparison.
-- The final reference contains 13,142 park-days from 2015–2019 and 2022–2025. The raw CSV remains unchanged for audit.
-- In that reference, `crowd_rel_to_year` has median 1.02, interquartile range 0.642–1.331, and range 0.000–3.148.
-- Same park × calendar month × weekday creates 336 comparison cells with 36–41 observations each. This supports a median and middle-50% interval without imputation.
+- The full range contains 118–124 missing calendar dates per park, largely around disrupted operations. Dates are not imputed.
+- 2020–2021 are excluded from the reference because of operating disruption. Partial 2026 is excluded because it is unfinished.
+- The fixed reference contains 13,142 park-days from 2015–2019 and 2022–2025; the raw CSV remains unchanged.
+- Reference `crowd_rel_to_year` has median 1.02, interquartile range 0.642–1.331, and range 0.000–3.148.
+- Park × calendar month × weekday produces 336 comparison cells with 36–41 observations each.
 - The active attraction summary covers 83 attractions: 40 Magic Kingdom, 18 Epcot, 15 Hollywood Studios, and 10 Animal Kingdom.
-- Pass classification is not park-wide: it covers only the 40 active Magic Kingdom matches. The interface never infers a label for the remaining 43 attractions.
+- Pass labels cover only the 40 active Magic Kingdom matches; labels are not inferred for the other 43 attractions.
 
-### Comparison and route method
+### Three headline KPIs
 
-For each candidate park-day, QueueSense selects historical rows for the same **park, calendar month, and weekday** and calculates the median `crowd_rel_to_year`. The route search:
+The Trip brief, Route review, and Travel plan use the same definitions.
 
-1. creates one park slot per trip day;
-2. adds a second slot only when Park Hopper is selected and must-do park coverage requires it;
-3. limits candidates to parks the group accepts;
-4. requires every park implied by a must-do attraction;
-5. avoids assigning the same park twice on one hopper day;
-6. minimizes the sum of comparable-date medians and then the highest single visit;
-7. preserves variety up to the number of available trip days.
+| KPI | Definition and limitation | Decision use |
+|---|---|---|
+| **Historical trip pressure** | Mean of selected visits' comparable-date median indices, expressed as `× park-year mean`. `1.00×` is each park's corresponding-year mean. It does not compare actual wait minutes across parks, and an index decrease is not the same percentage of queue-time savings. | Compare alternative routes that satisfy the group's constraints. |
+| **Higher-pressure visits** | Count of planned visits whose comparable-date median is at least `1.10×`. The threshold is a transparent human-review rule, not a validated prediction boundary. | Locate the visits that need focused manager review. |
+| **Must-dos in scheduled parks** | Count of selected must-do attractions whose associated park appears anywhere in the route. This park-presence check does not guarantee completion or validate queues, transport, operating hours, or closures. With no must-dos, the app shows an explicit empty state. | Check whether the route omitted a park required by a selected must-do. |
 
-For a four-day trip with all parks accepted, the first proposal therefore covers all four parks automatically. A user may override the proposal, but is not forced to construct it.
+### Supporting chart
 
-### Final KPIs and threshold
+The core dashboard uses one chart: historical pressure for each selected park-day, with reference lines at `1.00×` and the `1.10×` manager-review threshold. It supports the KPIs by showing where pressure occurs without adding unrelated charts.
 
-The trip-brief preview, manager review, and travel-plan delivery use the same three metric definitions, so the decision signal stays consistent across the workflow:
+### Filters and inputs
 
-1. **Historical trip pressure** — mean of the selected visits' comparable-date median indices, in `× park-year mean`. `1.00×` is the corresponding park's mean within each source year. Because every park is normalized to itself, indices do not compare actual waiting minutes between parks. A route-index decrease is not the same percentage reduction in queue time.
-2. **Higher-pressure visits** — count of visits whose comparable-date median is at least `1.10×`. The threshold is a transparent human-review rule, not a validated prediction boundary.
-3. **Must-dos in scheduled parks** — count of selected must-do attractions whose associated park appears anywhere in the route. This is deliberately a **park-presence check**: it does not promise that the visitor can complete an attraction and does not validate queues, travel time, operating hours, or closures. With no selection, the dashboard shows an explicit empty state.
+Primary inputs are first Disney date, number of Disney days, accepted parks, ticket access, trip rhythm, and must-do attractions. Hotel and early-entry details are secondary options because they affect only final operational guidance, not the historical pressure score or route recommendation.
 
-The visitor-ready list always includes every selected must-do belonging to a scheduled park. `Relaxed`, `Balanced`, and `Highlights` control only the number of **additional** recommendations; they never truncate must-dos. Must-dos, extra recommendations, and the flexible backup are deduplicated, including when a park occurs more than once. When a user-edited route is more than 3% above the system draft, the app calls out the difference while preserving the visitor's right to prefer it.
+`Relaxed`, `Balanced`, and `Highlights` limit only additional recommendations. Every selected must-do belonging to a scheduled park remains in the visitor list. Must-dos, extra recommendations, and flexible backups are deduplicated, including repeated parks.
 
-### Evidence retained and omitted
+### Recommendation method
 
-The app retains one chart: the selected route's historical pressure by park-day with lines at 1.00 and 1.10. The final cards then connect each park to must-do attractions, historically higher-wait preparation priorities, the available snapshot pass label, and a lower-burden backup.
+For each candidate visit, QueueSense uses the median historical index for the same park, calendar month, and weekday. The search uses only accepted parks, requires parks implied by must-dos, respects One Park Per Day or Park Hopper access, prevents duplicate parks on the same hopper day, minimizes total and then peak historical pressure, and preserves variety where trip length permits. A manager may override the proposal.
 
-Deliberately omitted:
+### Evidence omitted and misleading-data controls
 
-- **Visitor counts or “attendance”:** no reliable attendance field exists.
-- **Exact future wait minutes or hour-by-hour order:** the files do not support that precision.
-- **A map or walking-time optimizer:** no reliable walking network or geocoded attraction path is provided.
-- **Weather/event causality:** future weather, closures, and temporary events are unavailable.
-- **A raw-data table and extra decorative charts:** neither changes the manager's route decision.
-- **Unmatched pass assumptions:** labels missing outside Magic Kingdom are shown as “Verify access,” never filled in from memory.
+- No visitor counts or attendance claims: no reliable attendance field exists.
+- No precise future waits or hour-by-hour schedule: the data do not support that precision.
+- No walking-time optimizer: no reliable walking network is provided.
+- No weather or event causality: future conditions and event labels are unavailable.
+- No raw-data table or extra decorative charts: they do not change the route decision.
+- Unmatched pass labels display “Verify access” rather than guessed classifications.
+- Attraction minutes are labeled `source avg`; historical indices are not presented as predicted minutes.
+- Empty park selections, infeasible must-do combinations, duplicate hopper parks, missing files, and API failures have explicit states.
+- The final plan tells the user to recheck official hours, closures, ticket rules, and access.
 
-## Step 3 — Guided one-panel product design
+### Page order and information hierarchy
 
-The desktop experience is a **guided decision dashboard**, not a long analytical report. Step 1 keeps dates, days, accepted parks, ticket access, pace, and must-dos in the primary form. Hotel and early-entry details sit in a secondary disclosure because they affect only the final operational checklist, not the historical score or route recommendation. Step 2 is the manager's core dashboard: three KPIs, one supporting chart on an opaque plotting surface, the route rationale, and the recommended action. Step 3 is the decision-approved visitor handoff rather than a second analysis page. Step 4 confirms session-only storage. The page fills the available width and uses one browser-level vertical scroll when browser zoom or viewport height makes the content taller than the screen, so content is not clipped inside a locked viewport.
+The four-page workflow is:
 
-The product uses a four-step guided flow:
+1. **Trip brief:** input the group's dates, access, pace, accepted parks, and must-dos.
+2. **Route review:** the itinerary product manager reviews and optionally adjusts the system proposal.
+3. **Travel plan:** deliver the approved visitor itinerary.
+4. **Saved:** confirm the itinerary only in the current browser session, not an account or database.
 
-1. **🎠 Trip brief** — visitor facts and preferences on the left; an immediate system route and the three decision KPIs appear on the right.
-2. **🎢 Route review** — the manager's core review-and-adjust dashboard with three KPIs, one explanatory chart, route rationale, a specific action, and an optional override.
-3. **🗺️ Travel plan** — the approved decision delivered as a polished visitor brief with park-days, every in-scope must-do, pace-limited extras, unique backups, hotel/access checks, and explicit uncertainty.
-4. **🎆 Saved** — confirms that the plan exists only in the current browser session, not an account or database, while a quick, one-time balloon celebration crosses the screen; options return to page 1 or reopen the plan.
+Within Route review, the three headline KPIs appear first, followed by the baseline/live-data explanation and the optional-adjustment toggle. If the toggle is enabled, the manual park selectors appear there. The threshold status, historical pressure chart, route rationale, manager action, and navigation then complete the review. The visual hierarchy remains summary, evidence, and action without adding another chart.
 
-The sequence answers the manager's questions in order: “What does this group need?”, “What route does the evidence support?”, “What should I hand to the visitor?”, and “Was the plan recorded?” On narrow screens the same content stacks and scrolls for accessibility. Park labels use a consistent non-logo icon system: 🏰 Magic Kingdom, 🌐 Epcot, 🎬 Hollywood Studios, and 🌳 Animal Kingdom.
+Before coding, I sketched the dashboard layout on paper, placing the headline KPIs at the top, the supporting pressure chart and route rationale in the middle, and action guidance and optional details below. The sketch helped determine the information hierarchy before implementation.
+
+On narrow screens, content stacks and uses normal browser scrolling. Park labels use consistent non-logo icons: 🏰 Magic Kingdom, 🌐 Epcot, 🎬 Hollywood Studios, and 🌳 Animal Kingdom.
 
 ### Reproducible decision case
 
-This case was calculated against the committed CSVs and current route code (and can be rerun with the automated tests plus the app):
-
 - **Input:** November 2, 2026 start; four Disney days; all four parks accepted; One Park Per Day; `Relaxed`; five Magic Kingdom must-dos—Seven Dwarfs Mine Train, TRON Lightcycle / Run, Peter Pan's Flight, Jungle Cruise, and Space Mountain.
 - **System result:** Day 1 Hollywood Studios `1.2450×`, Day 2 Animal Kingdom `0.9090×`, Day 3 Epcot `0.6745×`, and Day 4 Magic Kingdom `0.7040×`; route mean `0.8831×` (displayed `0.88×`), one of four visits at or above `1.10×`, and `5 / 5` must-dos in scheduled parks.
-- **Adjustment reviewed:** replacing Day 2 Animal Kingdom with Magic Kingdom lowers the displayed route mean to `0.84×` (`0.8365×` before rounding) while keeping one flagged visit and `5 / 5` park-level must-do coverage, but reduces the route from four unique parks to three.
-- **Manager action:** reject that adjustment unless the group explicitly values a second Magic Kingdom day more than four-park variety; retain the system draft, review the flagged Hollywood Studios day, confirm current hours and closures, and prepare a lower-burden backup. On the Magic Kingdom card, Relaxed still lists all five must-dos, then two extra recommendations; none is displaced by the pace setting.
+- **Adjustment reviewed:** replacing Day 2 Animal Kingdom with Magic Kingdom produces `0.8365×` (displayed `0.84×`), keeps one flagged visit and `5 / 5` park-level coverage, but reduces variety from four unique parks to three.
+- **Manager action:** retain the system route unless the group explicitly prefers a second Magic Kingdom day; review the flagged Hollywood Studios visit, confirm current hours and closures, and prepare a lower-pressure backup. The Magic Kingdom card still lists all five must-dos plus two pace-limited extras.
 
-These numbers are historical comparison outputs, not promised wait-time savings or completion rates.
+These values are historical comparison outputs, not promised queue-time savings or completion rates.
 
-### Misleading-data controls
+## Step 4 — Refresh Frequency and Action Rules
 
-- COVID-disrupted years and partial 2026 are excluded from the reference, not deleted from the raw file.
-- The app says “historical index,” never attendance or predicted minutes.
-- Attraction minutes are labeled `source avg`.
-- Pass classes are explicitly called snapshot labels and unmatched rows say “Verify access.”
-- Special events, closures, and operating-hour differences can still affect comparisons because reliable event labels are unavailable. The dashboard therefore uses comparable-date medians and presents the result as a review signal, not a causal claim.
-- Hotel and early-entry inputs alter the final operational checklist, but not the historical route score. The source has no reliable hotel-transfer times, future day-specific early-entry eligibility, or current entitlement rules, so the app does not invent them.
-- Empty park selections, insufficient park slots, duplicate hopper assignments, missing files, and API failure have clear states.
-- The final brief requires rechecking official hours, closures, ticket rules, and access before acting.
+| Element | Current classroom app | Proposed production design |
+|---|---|---|
+| Historical data | Frozen committed Kaggle CSVs | Nightly batch collection after operational data are verified; not currently implemented |
+| Historical baseline | Fixed 2015–2019 and 2022–2025 reference years | New arrivals would not enter the baseline automatically; changes require validation and a reviewed release |
+| Live API | Requested on interaction or reload and cached for five minutes; no idle-page auto-refresh | Same operational separation from historical planning |
+| Human review | Manager reviews upcoming groups each Monday | Continue the Monday review cadence |
+| Automated alerts/trends | Not implemented | Possible operational layer, separate from the planning dashboard |
 
-## Step 4 — Refresh, use, and deploy
+Nightly verified collection is sufficient for the proposed production workflow because the manager reviews future group itineraries each Monday. For advance planning, continuous real-time refresh would not change most route decisions. Same-day closures or severe operating abnormalities are better handled through an alert or official notification.
 
-### Cadence and action rule
+### Action rules
 
-- **Classroom historical data:** frozen Kaggle CSV; no automatic refresh.
-- **Proposed production data collection:** nightly after verified operational data become available; this collection schedule is not implemented by the classroom app.
-- **Historical recommendation baseline:** fixed to 2015–2019 and 2022–2025 in code. Nightly arrivals would not enter this reference automatically; changing the reference years requires explicit validation and a reviewed code/model release.
-- **Live operational signal:** fetched only on a Streamlit rerun caused by interaction or reload, then cached for 300 seconds. The source's stated five-minute update frequency is not a browser auto-refresh schedule. A returned timestamp more than 15 minutes old is marked stale, while fewer than four responding parks is marked partial.
-- **Human review:** itinerary product manager reviews every Monday for upcoming groups; park-day live conditions are checked again before operational changes.
-- **Action trigger:** manually review a route when a visit is at or above `1.10`, fewer selected must-dos have their park scheduled than were selected, or a user override is more than 3% above the system draft.
-- **Cost of stale data:** if the planning base is a week out of date, the manager may rely on outdated queue patterns and create a mismatch between itinerary and experience. No unsupported financial loss is claimed.
+The manager reviews or prepares a backup when:
 
-**Production design rationale:** the manager plans upcoming group itineraries each Monday, so the proposed nightly batch is frequent enough for routine review; continuously refreshing the planning page would not change most advance-planning decisions. Same-day closures or severe operating disruptions are better handled through alerts or official notifications. This is a production design rationale, not an implemented classroom feature: the current app still uses frozen CSVs, a fixed historical baseline, and live data fetched only on interaction or reload and cached for five minutes. It does not implement automated collection, automated alerts, or timed page refreshes.
+- a planned visit reaches the `1.10×` historical-pressure review line;
+- not every selected must-do has its associated park scheduled; or
+- a manual route is more than 3% above the system draft.
 
-This remains a historical-data prototype. It cannot provide real-time park control, guarantee a “best day next week,” or predict exact future waits.
+The app also reports partial, stale, unavailable, or no-open-attraction live states, but live status does not overwrite the historical recommendation.
+
+### Continuous tracking design
+
+In a production workflow, each weekly review would record the share of future planned visits above the `1.10×` review line and identify the specific visits that meet it. The manager would use that record to decide whether to adjust the route or prepare a backup. Cross-week trend storage, automated alerts, automated nightly collection, and a rolling historical baseline are **design proposals only** and are not implemented in the current classroom app.
+
+Stale planning data could cause the manager to rely on outdated patterns, repeat manual verification, or create a mismatch between the itinerary and current operating reality. No unsupported financial or time-loss estimate is claimed.
+
+## Step 5 — Build, Deployment, and Submission
 
 ### Project structure
 
@@ -188,7 +191,6 @@ disney-itinerary-dashboard/
 │       ├── route-review.jpg
 │       ├── travel-plan.jpg
 │       └── saved.jpg
-├── .gitignore
 ├── .python-version
 ├── pyproject.toml
 ├── uv.lock
@@ -206,14 +208,16 @@ uv sync
 uv run streamlit run app.py
 ```
 
-Optional team-name override:
+QueueSense is the default team name. An optional runtime override is available:
 
 ```powershell
 $env:TEAM_NAME = "Your Team Name"
 uv run streamlit run app.py
 ```
 
-Execute the EDA notebook:
+Python 3.14 has been manually confirmed for the course environment; this README revision does not rebuild or change the deployment.
+
+### Execute the EDA notebook
 
 ```powershell
 uv run python -m ipykernel install --prefix .venv --name queuesense --display-name "QueueSense (Python 3.14)"
@@ -221,39 +225,34 @@ $env:JUPYTER_PATH = (Resolve-Path ".venv\share\jupyter").Path
 uv run jupyter nbconvert --execute --to notebook --inplace --ExecutePreprocessor.kernel_name=queuesense notebooks/eda.ipynb
 ```
 
-In VS Code, the equivalent is to select `.venv\Scripts\python.exe` as the notebook kernel and choose **Run All**.
+In VS Code, select `.venv\Scripts\python.exe` as the notebook kernel and choose **Run All**.
 
-### Streamlit Community Cloud
+### Existing deployment and submission links
 
-1. Push this public repository to GitHub.
-2. Create a new Streamlit Community Cloud app from `SelinaHe913/disney-itinerary-dashboard`.
-3. Select branch `main` and main file `app.py`.
-4. In **Advanced settings**, select Python **3.14** as required by the course.
-5. The deployed app is available at [queuesense-disney-itinerary.streamlit.app](https://queuesense-disney-itinerary.streamlit.app/); test all four steps and at least one changed preference after each deployment.
+The existing Streamlit Community Cloud app uses branch `main` and entry point `app.py`.
 
-Canvas submission should contain exactly two real links: the public GitHub repository URL and the public Streamlit app URL.
+1. **Public GitHub repository:** [SelinaHe913/disney-itinerary-dashboard](https://github.com/SelinaHe913/disney-itinerary-dashboard)
+2. **Public Streamlit app:** [queuesense-disney-itinerary.streamlit.app](https://queuesense-disney-itinerary.streamlit.app/)
 
-### Visual credit
+## Visual credit
 
-Stage photographs are Creative Commons files from Wikimedia Commons. The app serves optimized 2560 × 1440 local copies from `static/backgrounds/` so each stage loads without waiting for an external image redirect:
+The app serves optimized 2560 × 1440 local copies of Creative Commons photographs from `static/backgrounds/`:
 
 - Trip brief: [Magic Kingdom — Cinderella Castle panorama](https://commons.wikimedia.org/wiki/File:Magic_Kingdom_-_Cinderella_Castle_panorama_-_by_mrkathika.jpg), Michael Gray, [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/).
 - Route review: [Tree of Life, Disney's Animal Kingdom](https://commons.wikimedia.org/wiki/File:Tree_of_Life,_Disney%27s_Animal_Kingdom.jpg), Jedi94, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
 - Travel plan: [The colourful parade at Walt Disney World Resort](https://commons.wikimedia.org/wiki/File:The_colourful_parade_at_Walt_Disney_World_Resort_in_Orlando,_Florida_with_Snow_White_%26_the_Seven_Dwarfs_(15631604701).jpg), traveljunction, [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/).
-- Saved celebration: [Cinderella's Castle at Night](https://commons.wikimedia.org/wiki/File:Cinderella%27s_Castle_at_Night.jpg), Dancorona21, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+- Saved: [Cinderella's Castle at Night](https://commons.wikimedia.org/wiki/File:Cinderella%27s_Castle_at_Night.jpg), Dancorona21, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
 
-The photographs are pre-cropped for a 16:9 dashboard and still use `background-size: cover` for full-viewport coverage. A lighter purple, rose, and fireworks-gold interface overlay preserves legibility without hiding the photography. Park icons, stars, carousel/fireworks emoji, the full-screen saved-page celebration, and the four photographs provide the themed visual language; no official logo or character artwork is redistributed.
+The photographs remain visible beneath legibility overlays and use `background-size: cover`. No official logo or character artwork is redistributed.
 
 ## Reproducibility checklist
 
-- [x] Three real Kaggle CSVs used only where they support a decision
-- [x] Historical and live evidence kept conceptually separate
-- [x] EDA, app, and README use the same comparable-date definition
-- [x] 1–7 day trips, one-park tickets, Park Hopper, must-dos, hotel type, access, and pace supported
-- [x] System proposes parks before asking the visitor to edit them
-- [x] Responsive four-stage flow with one-page scrolling, licensed stage photography, and park icon labels
-- [x] Empty, infeasible, duplicate-hopper, missing-file, and API-error states handled
-- [x] Regression tests protect default routing, ticket/day changes, park-level must-do coverage, must-do retention beyond pace limits, deduplication, and live empty/partial states
-- [x] Units, sample limitations, update cadence, and action rules documented
-- [x] One dependency system: `pyproject.toml` + `uv.lock`
-- [x] Public Streamlit URL added after deployment
+- [x] Dataset name, link, source, period, approximate size, shape, row definition, and observational character documented
+- [x] One primary decision-maker, weekly use, supported decision, manual-work risk, and dashboard rationale stated
+- [x] EDA findings, KPI definitions and uses, one supporting chart, filters, omissions, risks, layout, and reproducible case documented
+- [x] Frozen data, fixed baseline, live-cache behavior, proposed nightly collection, Monday review, action rules, and tracking proposal separated
+- [x] Must-do coverage described as park presence rather than guaranteed completion
+- [x] Hotel and early-entry inputs described as final-guidance inputs only
+- [x] Empty, infeasible, duplicate-hopper, missing-file, and API-error states documented
+- [x] Project structure, local run, EDA execution, deployment, and the two public submission links included
+- [x] Image sources and licenses retained
