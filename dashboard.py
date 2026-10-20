@@ -90,22 +90,22 @@ def inject_styles(step: int) -> None:
 .stepper{gap:.36rem;margin:0}
 .step{padding:.28rem .5rem}
 .data-ribbon{padding:.32rem .65rem}
-.st-key-guided_workspace{min-height:0;padding:.64rem .82rem;background:rgba(250,248,244,.94);border-color:rgba(255,255,255,.88);backdrop-filter:blur(8px)}
+.st-key-guided_workspace{min-height:0;padding:.64rem .82rem;background:rgba(250,248,244,.86);border-color:rgba(255,255,255,.78);backdrop-filter:blur(6px)}
 .st-key-guided_workspace>div[data-testid="stVerticalBlock"]{gap:.38rem}
-.work-head{padding:.42rem .62rem;margin:0;background:rgba(255,255,255,.97);border-color:rgba(69,53,120,.13)}
+.work-head{padding:.42rem .62rem;margin:0;background:rgba(255,255,255,.92);border-color:rgba(69,53,120,.13)}
 .work-head h2{font-size:clamp(1.35rem,1.16vw,1.8rem)}
 .work-head p{font-size:.78rem}
-.st-key-guided_workspace div[data-testid="stVerticalBlockBorderWrapper"]{background:rgba(255,255,255,.97);backdrop-filter:none}
-.st-key-guided_workspace [data-testid="stMetric"]{min-height:78px;background:rgba(255,255,255,.99)!important;border-color:rgba(62,49,112,.16)!important}
+.st-key-guided_workspace div[data-testid="stVerticalBlockBorderWrapper"]{background:rgba(255,255,255,.94);backdrop-filter:none}
+.st-key-guided_workspace [data-testid="stMetric"]{min-height:78px;background:rgba(255,255,255,.96)!important;border-color:rgba(62,49,112,.16)!important}
 .st-key-guided_workspace [data-testid="stMetricLabel"]{font-size:.72rem}
 .st-key-guided_workspace [data-testid="stMetricValue"]{font-size:1.42rem}
-.st-key-guided_workspace [data-testid="stCaptionContainer"]{display:block;padding:.44rem .58rem;background:rgba(255,255,255,.98);font-size:.74rem;line-height:1.45}
+.st-key-guided_workspace [data-testid="stCaptionContainer"]{display:block;padding:.44rem .58rem;background:rgba(255,255,255,.94);font-size:.74rem;line-height:1.45}
 .st-key-guided_workspace [data-testid="stImage"]{padding:.42rem .5rem;border:1px solid rgba(62,49,112,.13);border-radius:14px;background:#FFFEFC}
 .decision-main,.decision-score,.swap,.manager-action{box-shadow:0 4px 14px rgba(25,24,59,.055)}
 .decision-main b{font-size:.83rem}.decision-main p{font-size:.74rem;line-height:1.5}
 .decision-score span{font-size:.66rem}.decision-score strong{font-size:1.42rem}
-.swap{padding:.48rem .56rem;font-size:.75rem;background:rgba(255,255,255,.99)}
-.manager-action{padding:.68rem .72rem;background:rgba(255,247,224,.98);font-size:.75rem;line-height:1.5}
+.swap{padding:.48rem .56rem;font-size:.75rem;background:rgba(255,255,255,.95)}
+.manager-action{padding:.68rem .72rem;background:rgba(255,247,224,.94);font-size:.75rem;line-height:1.5}
 """ if step == 2 else ""
     st.markdown(
         f"""
