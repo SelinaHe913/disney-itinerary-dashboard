@@ -18,7 +18,7 @@ Historical fit is planning evidence, not a precise prediction of a future day's 
 
 The single decision-maker is the itinerary product manager. Every Monday, they review upcoming groups and may change the recommended park mix, order of park-days, or which high-burden attractions require advance preparation. On a park day, the live header is a separate operational check.
 
-Without the app, the manager would repeatedly join dates to parks, compare month-and-weekday records, locate the parks of must-do attractions, and check current queues separately. A fixed report cannot answer a different group's dates, access, and priorities without being rebuilt. The app does not claim a specific number of hours saved or dollars earned.
+Without the app, the manager would repeatedly join dates to parks, compare month-and-weekday records, locate the parks of must-do attractions, and check current queues separately. A fixed report cannot answer a different team's dates, trip length, accepted parks, ticket access, pace, and must-do mix without being rebuilt; the interactive controls recalculate the proposal and review signals for each group. Emergencies such as a sudden closure, severe weather, major ride downtime, or a ticket-rule change are better handled by an operational alert or official notification than by expecting a planning dashboard to be watched continuously. The app does not claim a specific number of hours saved or dollars earned.
 
 ### Kaggle historical snapshot
 
@@ -41,8 +41,8 @@ Two compact companion files add only decision-useful attraction context:
 
 | File | Source rows | App use |
 |---|---:|---|
-| `data/ride_stats.csv` | 2,022 | Uses 83 active, all-time `ride_avg_wait` rows to link attractions to parks and rank preparation priorities. The minutes are source summaries, not future predictions. |
-| `data/ll_classification.csv` | 51 | Snapshot labels for Magic Kingdom only: 18 `multi_pass`, 2 `single_pass`, 14 `none`, and 17 `exclude`. Of the 83 active ride rows, 40 match a label; the other 43 are deliberately shown as “Verify access.” |
+| `data/ride_stats.csv` | 2,022 | 151,458 bytes. Uses 83 active, all-time `ride_avg_wait` rows to link attractions to parks and rank preparation priorities. The minutes are source summaries, not future predictions. |
+| `data/ll_classification.csv` | 51 | 2,672 bytes. Snapshot labels for Magic Kingdom only: 18 `multi_pass`, 2 `single_pass`, 14 `none`, and 17 `exclude`. Of the 83 active ride rows, 40 match a label; the other 43 are deliberately shown as “Verify access.” |
 
 Other Kaggle companion tables were inspected but are not shipped to the app:
 
@@ -54,9 +54,10 @@ This follows the assignment's “small and decision-focused” requirement: maxi
 
 ### Public live source
 
-The header calls the free [Queue-Times API](https://queue-times.com/en-US/pages/api) for the four Orlando park IDs. The provider states that queue data update every five minutes. The app retrieves parks concurrently, caches for 300 seconds, displays the source timestamp when available, includes the required **Powered by Queue-Times.com** link, and falls back to historical planning if the network is unavailable.
+The header calls the free [Queue-Times API](https://queue-times.com/en-US/pages/api) for the four Orlando park IDs. The provider states that queue data update every five minutes. QueueSense requests the API only when Streamlit executes after an interaction or page reload, and caches each result for 300 seconds; an idle page does **not** refresh itself every five minutes. The header displays the source date and time in Eastern Time, the number of returned parks, and the denominator used for the open-attraction median. A snapshot older than 15 minutes—three stated source-update intervals—is marked stale. Partial park responses are marked partial, and a total failure leaves historical planning available.
 
-Live data answer “what is happening now?” They are never blended into a precise forecast for the selected future dates.
+Missing wait values remain missing; a real reported zero is retained. If the returned scope contains no open attractions, the interface says so instead of showing a normal-looking `0 min` median. Live data answer “what is happening now?” They are never blended into a precise forecast for the selected future dates.
+
 
 ## Step 2 — EDA and defensible measures
 
@@ -91,13 +92,13 @@ For a four-day trip with all parks accepted, the first proposal therefore covers
 
 ### Final KPIs and threshold
 
-The trip-brief preview and decision-review screen keep exactly three top metrics in the same definitions, so the decision signal is visible immediately and stays consistent during review:
+The trip-brief preview, manager review, and travel-plan delivery use the same three metric definitions, so the decision signal stays consistent across the workflow:
 
-1. **Historical trip-pressure** — mean of the selected visits' comparable-date median indices, in `× park-year mean`.
-2. **Higher-pressure visits** — count of visits whose comparable-date median is at least `1.10`.
-3. **Must-do coverage** — selected must-do attractions retained by the proposed parks.
+1. **Historical trip pressure** — mean of the selected visits' comparable-date median indices, in `× park-year mean`. `1.00×` is the corresponding park's mean within each source year. Because every park is normalized to itself, indices do not compare actual waiting minutes between parks. A route-index decrease is not the same percentage reduction in queue time.
+2. **Higher-pressure visits** — count of visits whose comparable-date median is at least `1.10×`. The threshold is a transparent human-review rule, not a validated prediction boundary.
+3. **Must-dos in scheduled parks** — count of selected must-do attractions whose associated park appears anywhere in the route. This is deliberately a **park-presence check**: it does not promise that the visitor can complete an attraction and does not validate queues, travel time, operating hours, or closures. With no selection, the dashboard shows an explicit empty state.
 
-`1.10` is a transparent review threshold, not a causal or statistically validated cutoff. It triggers human review; it never declares that a route must change. When a user-edited route is more than 3% above the system draft, the app calls out the difference while preserving the visitor's right to prefer it.
+The visitor-ready list always includes every selected must-do belonging to a scheduled park. `Relaxed`, `Balanced`, and `Highlights` control only the number of **additional** recommendations; they never truncate must-dos. Must-dos, extra recommendations, and the flexible backup are deduplicated, including when a park occurs more than once. When a user-edited route is more than 3% above the system draft, the app calls out the difference while preserving the visitor's right to prefer it.
 
 ### Evidence retained and omitted
 
@@ -114,16 +115,27 @@ Deliberately omitted:
 
 ## Step 3 — Guided one-panel product design
 
-The desktop experience is a **guided decision dashboard**, not a long analytical report. Step 1 contains only the inputs that can change the recommendation; Step 2 is the main dashboard surface with three KPIs, one supporting chart, and route-level evidence; Steps 3–4 turn the reviewed decision into a visitor handoff and a saved confirmation. The extra stages do not add unrelated analytics. The page fills the available width and uses one browser-level vertical scroll when browser zoom or viewport height makes the content taller than the screen, so content is not clipped inside a locked viewport.
+The desktop experience is a **guided decision dashboard**, not a long analytical report. Step 1 keeps dates, days, accepted parks, ticket access, pace, and must-dos in the primary form. Hotel and early-entry details sit in a secondary disclosure because they affect only the final operational checklist, not the historical score or route recommendation. Step 2 is the manager's core dashboard: three KPIs, one supporting chart on an opaque plotting surface, the route rationale, and the recommended action. Step 3 is the decision-approved visitor handoff rather than a second analysis page. Step 4 confirms session-only storage. The page fills the available width and uses one browser-level vertical scroll when browser zoom or viewport height makes the content taller than the screen, so content is not clipped inside a locked viewport.
 
 The product uses a four-step guided flow:
 
 1. **🎠 Trip brief** — visitor facts and preferences on the left; an immediate system route and the three decision KPIs appear on the right.
-2. **🎢 Route review** — three KPIs, one explanatory chart, route rationale, and an optional override.
-3. **🗺️ Travel plan** — a polished brief with park-days, attraction priorities, backups, hotel/access checks, and explicit uncertainty.
-4. **🎆 Saved** — shows the recorded-plan confirmation immediately while a quick, one-time balloon celebration crosses the screen; slower ambient park symbols remain, with options to return to page 1 or review the saved plan.
+2. **🎢 Route review** — the manager's core review-and-adjust dashboard with three KPIs, one explanatory chart, route rationale, a specific action, and an optional override.
+3. **🗺️ Travel plan** — the approved decision delivered as a polished visitor brief with park-days, every in-scope must-do, pace-limited extras, unique backups, hotel/access checks, and explicit uncertainty.
+4. **🎆 Saved** — confirms that the plan exists only in the current browser session, not an account or database, while a quick, one-time balloon celebration crosses the screen; options return to page 1 or reopen the plan.
 
 The sequence answers the manager's questions in order: “What does this group need?”, “What route does the evidence support?”, “What should I hand to the visitor?”, and “Was the plan recorded?” On narrow screens the same content stacks and scrolls for accessibility. Park labels use a consistent non-logo icon system: 🏰 Magic Kingdom, 🌐 Epcot, 🎬 Hollywood Studios, and 🌳 Animal Kingdom.
+
+### Reproducible decision case
+
+This case was calculated against the committed CSVs and current route code (and can be rerun with the automated tests plus the app):
+
+- **Input:** November 2, 2026 start; four Disney days; all four parks accepted; One Park Per Day; `Relaxed`; five Magic Kingdom must-dos—Seven Dwarfs Mine Train, TRON Lightcycle / Run, Peter Pan's Flight, Jungle Cruise, and Space Mountain.
+- **System result:** Day 1 Hollywood Studios `1.2450×`, Day 2 Animal Kingdom `0.9090×`, Day 3 Epcot `0.6745×`, and Day 4 Magic Kingdom `0.7040×`; route mean `0.8831×` (displayed `0.88×`), one of four visits at or above `1.10×`, and `5 / 5` must-dos in scheduled parks.
+- **Adjustment reviewed:** replacing Day 2 Animal Kingdom with Magic Kingdom lowers the displayed route mean to `0.84×` (`0.8365×` before rounding) while keeping one flagged visit and `5 / 5` park-level must-do coverage, but reduces the route from four unique parks to three.
+- **Manager action:** reject that adjustment unless the group explicitly values a second Magic Kingdom day more than four-park variety; retain the system draft, review the flagged Hollywood Studios day, confirm current hours and closures, and prepare a lower-burden backup. On the Magic Kingdom card, Relaxed still lists all five must-dos, then two extra recommendations; none is displaced by the pace setting.
+
+These numbers are historical comparison outputs, not promised wait-time savings or completion rates.
 
 ### Misleading-data controls
 
@@ -141,10 +153,11 @@ The sequence answers the manager's questions in order: “What does this group n
 ### Cadence and action rule
 
 - **Classroom historical data:** frozen Kaggle CSV; no automatic refresh.
-- **Proposed production historical refresh:** nightly after verified operational data become available.
-- **Live operational signal:** source and app cache use a five-minute cadence.
+- **Proposed production data collection:** nightly after verified operational data become available; this collection schedule is not implemented by the classroom app.
+- **Historical recommendation baseline:** fixed to 2015–2019 and 2022–2025 in code. Nightly arrivals would not enter this reference automatically; changing the reference years requires explicit validation and a reviewed code/model release.
+- **Live operational signal:** fetched only on a Streamlit rerun caused by interaction or reload, then cached for 300 seconds. The source's stated five-minute update frequency is not a browser auto-refresh schedule. A returned timestamp more than 15 minutes old is marked stale, while fewer than four responding parks is marked partial.
 - **Human review:** itinerary product manager reviews every Monday for upcoming groups; park-day live conditions are checked again before operational changes.
-- **Action trigger:** manually review a route when a visit is at or above `1.10`, must-do coverage is incomplete, or a user override is more than 3% above the system draft.
+- **Action trigger:** manually review a route when a visit is at or above `1.10`, fewer selected must-dos have their park scheduled than were selected, or a user override is more than 3% above the system draft.
 - **Cost of stale data:** if the planning base is a week out of date, the manager may rely on outdated queue patterns and create a mismatch between itinerary and experience. No unsupported financial loss is claimed.
 
 This remains a historical-data prototype. It cannot provide real-time park control, guarantee a “best day next week,” or predict exact future waits.
@@ -163,6 +176,8 @@ disney-itinerary-dashboard/
 │   └── ll_classification.csv
 ├── notebooks/
 │   └── eda.ipynb
+├── tests/
+│   └── test_dashboard_logic.py
 ├── static/
 │   └── backgrounds/
 │       ├── trip-brief.jpg
@@ -219,8 +234,8 @@ Canvas submission should contain exactly two real links: the public GitHub repos
 Stage photographs are Creative Commons files from Wikimedia Commons. The app serves optimized 2560 × 1440 local copies from `static/backgrounds/` so each stage loads without waiting for an external image redirect:
 
 - Trip brief: [Magic Kingdom — Cinderella Castle panorama](https://commons.wikimedia.org/wiki/File:Magic_Kingdom_-_Cinderella_Castle_panorama_-_by_mrkathika.jpg), Michael Gray, [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/).
-- Route review: [The colourful parade at Walt Disney World Resort](https://commons.wikimedia.org/wiki/File:The_colourful_parade_at_Walt_Disney_World_Resort_in_Orlando,_Florida_with_Snow_White_%26_the_Seven_Dwarfs_(15631604701).jpg), traveljunction, [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/).
-- Travel plan: [Tree of Life, Disney's Animal Kingdom](https://commons.wikimedia.org/wiki/File:Tree_of_Life,_Disney%27s_Animal_Kingdom.jpg), Jedi94, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+- Route review: [Tree of Life, Disney's Animal Kingdom](https://commons.wikimedia.org/wiki/File:Tree_of_Life,_Disney%27s_Animal_Kingdom.jpg), Jedi94, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+- Travel plan: [The colourful parade at Walt Disney World Resort](https://commons.wikimedia.org/wiki/File:The_colourful_parade_at_Walt_Disney_World_Resort_in_Orlando,_Florida_with_Snow_White_%26_the_Seven_Dwarfs_(15631604701).jpg), traveljunction, [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/).
 - Saved celebration: [Cinderella's Castle at Night](https://commons.wikimedia.org/wiki/File:Cinderella%27s_Castle_at_Night.jpg), Dancorona21, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
 
 The photographs are pre-cropped for a 16:9 dashboard and still use `background-size: cover` for full-viewport coverage. A lighter purple, rose, and fireworks-gold interface overlay preserves legibility without hiding the photography. Park icons, stars, carousel/fireworks emoji, the full-screen saved-page celebration, and the four photographs provide the themed visual language; no official logo or character artwork is redistributed.
@@ -234,6 +249,7 @@ The photographs are pre-cropped for a 16:9 dashboard and still use `background-s
 - [x] System proposes parks before asking the visitor to edit them
 - [x] Responsive four-stage flow with one-page scrolling, licensed stage photography, and park icon labels
 - [x] Empty, infeasible, duplicate-hopper, missing-file, and API-error states handled
+- [x] Regression tests protect default routing, ticket/day changes, park-level must-do coverage, must-do retention beyond pace limits, deduplication, and live empty/partial states
 - [x] Units, sample limitations, update cadence, and action rules documented
 - [x] One dependency system: `pyproject.toml` + `uv.lock`
 - [x] Public Streamlit URL added after deployment
